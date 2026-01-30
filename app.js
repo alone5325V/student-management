@@ -17,6 +17,10 @@ const secreatHeader = (req, res, next) => {
 }
 
 app.get('/students', (req, res) => {
+    if(!fs.existsSync('./students.json')){
+        return res.json([])
+    }
+
     const data = fs.readFileSync('./students.json')
 
     const jsonData = JSON.parse(data)
@@ -25,15 +29,16 @@ app.get('/students', (req, res) => {
 })
 
 app.post('/students', (req, res) => {
-    const tasks = JSON.parse(fs.readFileSync('students.json'))
+    let tasks = JSON.parse(fs.readFileSync('students.json'))
 
     const newTask = {
         id: Date.now(),
         name: req.body.name,
-        marks: req.body.marks
+        marks: req.body.marks,
+        status: ""
     }
 
-    if(marks >= 40 && marks <= 100){
+    if(newTask.marks >= 40 && newTask.marks <= 100){
         newTask.status = "Pass"
     } else{
         newTask.status = "Fail"
@@ -46,18 +51,32 @@ app.post('/students', (req, res) => {
 })
 
 app.get('/students/stats', (req, res) => {
-    let marksCount
-    const students = JSON.parse(fs.readFileSync('./students.joson'))
+    let marksCount = 0
+    const students = JSON.parse(fs.readFileSync('./students.json'))
     for(let i=0; i<students.length; i++){
         marksCount += students[i].marks
     }
 
-    const averageGrade = marksCount / (i + 1)
+    const averageGrade = marksCount / students.length
     res.status(200).send(`The average grade of students is ${averageGrade}`)
 })
 
-app.delete('/students/:id', (req, res) => {
+app.delete('/students/:id',secreatHeader, (req, res) => {
+    const idToDelete = req.params.id
 
+    const rawData = fs.readFileSync('./students.json')
+    const jsonData = JSON.parse(rawData)
+
+    const length = jsonData.length
+    jsonData = jsonData.filter(item => item.id != idToDelete)
+
+    if(jsonData.length === length){
+        return res.status(404).send("Student not found")
+    }
+
+    fs.writeFileSync('./students.json', json.stringify(jsonData, null, 2))
+
+    res.send(500).send("Error updating file.")
 })
 
 app.listen(PORT, () => console.log(`Server running on port: ${PORT}`))
