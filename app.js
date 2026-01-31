@@ -6,77 +6,63 @@ app.use(express.json())
 
 const PORT = 3000;
 
-const secreatHeader = (req, res, next) => {
-    const password = req.headers['x-auth']
+app.get('/books', (req, res) => {
 
-    if(password === 'teacher-pass'){
-        next()
-    } else{
-        res.status(403).send("Try again!!")
-    }
-}
-
-app.get('/students', (req, res) => {
-    if(!fs.existsSync('./students.json')){
-        return res.json([])
-    }
-
-    const data = fs.readFileSync('./students.json')
-
-    const jsonData = JSON.parse(data)
-
-    res.send(jsonData)
-})
-
-app.post('/students', (req, res) => {
-    let tasks = JSON.parse(fs.readFileSync('students.json'))
-
-    const newTask = {
-        id: Date.now(),
-        name: req.body.name,
-        marks: req.body.marks,
-        status: ""
-    }
-
-    if(newTask.marks >= 40 && newTask.marks <= 100){
-        newTask.status = "Pass"
-    } else{
-        newTask.status = "Fail"
-    }
-
-    tasks.push(newTask)
-    fs.writeFileSync('students.json', JSON.stringify(tasks, null, 2))
-
-    res.status(201).send("Student added successfully!")
-})
-
-app.get('/students/stats', (req, res) => {
-    let marksCount = 0
-    const students = JSON.parse(fs.readFileSync('./students.json'))
-    for(let i=0; i<students.length; i++){
-        marksCount += students[i].marks
-    }
-
-    const averageGrade = marksCount / students.length
-    res.status(200).send(`The average grade of students is ${averageGrade}`)
-})
-
-app.delete('/students/:id',secreatHeader, (req, res) => {
-    const idToDelete = req.params.id
-
-    const rawData = fs.readFileSync('./students.json')
+    const genreFilter = req.query.genre
+    const rawData = fs.readFileSync('./books.json')
     const jsonData = JSON.parse(rawData)
+    const booksOfCategory = []
 
-    const length = jsonData.length
-    jsonData = jsonData.filter(item => item.id != idToDelete)
+    if (genreFilter) {
+        const filtered = jsonData.filter(b => b.genre.toLowerCase() === genreFilter.toLowerCase())
+        booksOfCategory.push(filtered)
 
-    if(jsonData.length === length){
-        return res.status(404).send("Student not found")
+        return res.status(200).json(booksOfCategory).send(typeof(filtered))
     }
 
-    fs.writeFileSync('./students.json', json.stringify(jsonData, null, 2))
-
-    res.send(500).send("Error updating file.")
+    res.status(200).json(jsonData)
 })
 
-app.listen(PORT, () => console.log(`Server running on port: ${PORT}`))
+app.put('/books/:id/borrow', (req, res) => {
+    const id = req.params.id
+
+    const rawData = fs.readFileSync('./books.json')
+    const jsonData = JSON.parse(rawData)
+    let found = false;
+
+    const book = jsonData.find(b => b.id == id)
+    let available = book.isAvailable
+
+    if (available) {
+
+        if (book) {
+            book.isAvailable = false
+            found = true
+        }
+
+        if (!found) {
+            return res.status(404).send("Book not found")
+        }
+
+        fs.writeFileSync('./books.json', JSON.stringify(jsonData, null, 2))
+
+        res.send("Task completed")
+    }
+    else {
+        res.send("Book is already borrowed")
+    }
+})
+
+app.put('/books/:id/return', (req, res) => {
+    const id = req.params.id
+
+    const rawData = fs.readFileSync('./books.json')
+    const jsonData = JSON.parse(rawData)
+    jsonData.find(b => b.id == jsonData.id).isAvailable = true
+
+    fs.writeFileSync('./books.json', JSON.stringify(jsonData, null, 2))
+
+    res.status(200).send("Book returned seccessfully!")
+})
+
+app.listen(PORT, () => console.log(`Server is running on port: ${PORT}`))
